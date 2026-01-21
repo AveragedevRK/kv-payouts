@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -42,15 +41,13 @@ const AppCore: React.FC = () => {
   }
 
   return (
-    <AppProvider>
-      <div className="min-h-screen theme-bg-page theme-text-main font-sans transition-colors duration-300 relative isolation-auto selection:bg-[#FF2D92] selection:text-white">
-        <BackgroundWatermark />
-        <div className="relative z-10 flex flex-col min-h-screen">
-          <Header />
-          <TabNav />
-          <MainContent />
-          <FooterWrapper />
-        </div>
+    <div className="min-h-screen theme-bg-page theme-text-main font-sans transition-colors duration-300 relative isolation-auto selection:bg-[#FF2D92] selection:text-white">
+      <BackgroundWatermark />
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <Header />
+        <TabNav />
+        <MainContent />
+        <FooterWrapper />
       </div>
       <style>{`
         @keyframes highlight { 0% { background: #FF2D9240; } 100% { background: transparent; } }
@@ -117,14 +114,16 @@ const AppCore: React.FC = () => {
           animation: entrance-pulse 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
       `}</style>
-    </AppCore>
+    </div>
   );
 };
 
 export default function App() {
   return (
     <ThemeProvider>
-      <AppCore />
+      <AppProvider>
+        <AppCore />
+      </AppProvider>
     </ThemeProvider>
   );
 }
