@@ -1,126 +1,46 @@
-import React, { useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Leaf, 
-  ArrowUpRight, 
-  Calendar,
-  Search
-} from 'lucide-react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  AreaChart,
-  Area
-} from 'recharts';
-
-// Mock Data for the Dashboard
-const PAYOUT_DATA = [
-  { month: 'Jan', amount: 4500, credits: 120 },
-  { month: 'Feb', amount: 5200, credits: 145 },
-  { month: 'Mar', amount: 4800, credits: 130 },
-  { month: 'Apr', amount: 6100, credits: 170 },
-  { month: 'May', amount: 5900, credits: 165 },
-  { month: 'Jun', amount: 7200, credits: 210 },
-];
-
-// AppProvider component to manage global state/theme
-const AppProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState('dark');
-  return (
-    <div className={`min-h-screen ${theme}`} data-theme={theme}>
-      {children}
-    </div>
-  );
-};
-
-const Dashboard = () => {
-  return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto animate-fade-in">
-      {/* Header Section */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold theme-text-main flex items-center gap-2">
-            <Leaf className="theme-accent" /> Carbon Payouts
-          </h1>
-          <p className="theme-text-sub">Overview of your carbon credit earnings and impact.</p>
-        </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 rounded-lg theme-bg-subtle theme-text-main border theme-border flex items-center gap-2">
-            <Calendar size={18} /> Last 6 Months
-          </button>
-        </div>
-      </header>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {[
-          { label: 'Total Payout', value: '$33,700', icon: DollarSign, trend: '+12.5%' },
-          { label: 'Active Credits', value: '940.5', icon: TrendingUp, trend: '+4.2%' },
-          { label: 'Net Impact', value: '1.2k Tons', icon: Leaf, trend: '+8.1%' },
-        ].map((stat, i) => (
-          <div key={i} className="theme-bg-card p-6 rounded-2xl border theme-border">
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 rounded-xl bg-[#FF2D9220]">
-                <stat.icon className="theme-accent" size={24} />
-              </div>
-              <span className="text-green-500 text-sm font-medium flex items-center gap-1">
-                {stat.trend} <ArrowUpRight size={14} />
-              </span>
-            </div>
-            <h3 className="theme-text-sub text-sm font-medium">{stat.label}</h3>
-            <p className="text-2xl font-bold theme-text-main mt-1">{stat.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Main Chart Section */}
-      <div className="theme-bg-card p-6 rounded-2xl border theme-border mb-8">
-        <h3 className="theme-text-main font-bold mb-6">Revenue Growth</h3>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={PAYOUT_DATA}>
-              <defs>
-                <linearGradient id="colorAmt" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#FF2D92" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#FF2D92" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-              <XAxis dataKey="month" stroke="#b0b0b0" axisLine={false} tickLine={false} dy={10} />
-              <YAxis stroke="#b0b0b0" axisLine={false} tickLine={false} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#161616', borderColor: '#333', color: '#fff' }}
-                itemStyle={{ color: '#FF2D92' }}
-              />
-              <Area type="monotone" dataKey="amount" stroke="#FF2D92" fillOpacity={1} fill="url(#colorAmt)" strokeWidth={3} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const App = () => {
-  return (
-    <AppProvider>
-      <style>{`
-        /* Global CSS Overrides if needed */
-        .theme-accent { color: #FF2D92; }
-      `}</style>
-      <Dashboard />
-    </AppProvider> // Fixed closing tag here
-  );
-};
-
-const rootElement = document.getElementById('root');
-if (rootElement) {
-  createRoot(rootElement).render(<App />);
-}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <title>Carbon Payouts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --bg-page: #0a0a0a;
+        --bg-card: #161616;
+        --bg-hover: #262626;
+        --border-color: #333333;
+        --text-main: #ffffff;
+        --text-sub: #b0b0b0;
+        --accent: #FF2D92;
+      }
+      [data-theme="light"] {
+        --bg-page: #ffffff;
+        --bg-card: #f4f4f4;
+        --bg-hover: #e0e0e0;
+        --border-color: #d1d1d1;
+        --text-main: #121212;
+        --text-sub: #525252;
+      }
+      body { 
+        background-color: var(--bg-page); 
+        color: var(--text-main); 
+        font-family: 'IBM Plex Sans', sans-serif; 
+        margin: 0;
+      }
+      .theme-bg-card { background-color: var(--bg-card); }
+      .theme-border { border-color: var(--border-color); }
+      .theme-text-main { color: var(--text-main); }
+      .theme-text-sub { color: var(--text-sub); }
+      .theme-accent { color: var(--accent); }
+      
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
