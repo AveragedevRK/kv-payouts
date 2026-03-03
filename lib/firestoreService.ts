@@ -5,6 +5,7 @@ import {
   setDoc,
   addDoc,
   updateDoc,
+  deleteDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -15,18 +16,35 @@ const ACCOUNTS_COLLECTION = 'accounts';
 const PAYOUTS_SUBCOLLECTION = 'payouts';
 
 /**
- * Seed Firestore with hardcoded data if accounts collection is empty.
- * Uses batched writes. Firestore batches max at 500 ops, so we chunk.
+ * Delete all documents in the accounts collection including subcollections.
  */
-export async function seedIfEmpty(): Promise<void> {
+async function clearAllAccounts(): Promise<void> {
   const accountsRef = collection(db, ACCOUNTS_COLLECTION);
   const snapshot = await getDocs(accountsRef);
 
-  if (!snapshot.empty) {
-    return; // Already seeded
+  for (const accountDoc of snapshot.docs) {
+    // Delete all payouts in subcollection first
+    const payoutsRef = collection(
+      db,
+      ACCOUNTS_COLLECTION,
+      accountDoc.id,
+      PAYOUTS_SUBCOLLECTION
+    );
+    const payoutsSnap = await getDocs(payoutsRef);
+    for (const payoutDoc of payoutsSnap.docs) {
+      await deleteDoc(
+        doc(db, ACCOUNTS_COLLECTION, accountDoc.id, PAYOUTS_SUBCOLLECTION, payoutDoc.id)
+      );
+    }
+    // Delete the account doc
+    await deleteDoc(doc(db, ACCOUNTS_COLLECTION, accountDoc.id));
   }
+}
 
-  // Firestore batch limit is 500 operations per batch
+/**
+ * Write all INITIAL_ACCOUNTS to Firestore using batched writes.
+ */
+async function writeAllAccounts(): Promise<void> {
   const MAX_BATCH_OPS = 450;
   let batch = writeBatch(db);
   let opCount = 0;
@@ -69,6 +87,31 @@ export async function seedIfEmpty(): Promise<void> {
   if (opCount > 0) {
     await batch.commit();
   }
+}
+
+/**
+ * Force seed: clears ALL existing data and re-seeds from mockData.
+ */
+export async function forceSeed(): Promise<void> {
+  console.log('Force seeding: clearing existing data...');
+  await clearAllAccounts();
+  console.log('Existing data cleared. Writing mock data...');
+  await writeAllAccounts();
+  console.log('Force seed complete!');
+}
+
+/**
+ * Seed Firestore with hardcoded data if accounts collection is empty.
+ */
+export async function seedIfEmpty(): Promise<void> {
+  const accountsRef = collection(db, ACCOUNTS_COLLECTION);
+  const snapshot = await getDocs(accountsRef);
+
+  if (!snapshot.empty) {
+    return; // Already seeded
+  }
+
+  await writeAllAccounts();
 }
 
 /**
