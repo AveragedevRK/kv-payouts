@@ -21,14 +21,14 @@ export const ChartsGrid: React.FC<{ accounts: Account[] }> = ({ accounts }) => {
   ];
 
   const ChartBox = ({ title, children }: any) => (
-    <div className="theme-bg-card border theme-border p-4 md:p-6 rounded-xl h-72 md:h-80 flex flex-col">
-      <h3 className="theme-text-main font-semibold mb-4 text-sm">{title}</h3>
+    <div className="theme-bg-card border theme-border p-3 sm:p-4 md:p-6 rounded-xl h-64 sm:h-72 md:h-80 flex flex-col">
+      <h3 className="theme-text-main font-semibold mb-3 md:mb-4 text-xs sm:text-sm">{title}</h3>
       <div className="flex-1 min-h-0 w-full">{children}</div>
     </div>
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
       <ChartBox title="Volume by Account (Sorted Desc)">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={accountData}>
