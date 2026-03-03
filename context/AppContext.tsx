@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Account, ViewState, Payout } from '../types';
 import {
-  forceSeed,
   seedIfEmpty,
   fetchAllAccounts,
   addAccountToFirestore,
@@ -33,8 +32,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     let cancelled = false;
     async function init() {
       try {
-        // Force seed: clear and push all mock data to Firestore first
-        await forceSeed();
+        // Seed Firestore with hardcoded data if the collection is empty
+        await seedIfEmpty();
         // Fetch all accounts from Firestore
         const data = await fetchAllAccounts();
         if (!cancelled) {
