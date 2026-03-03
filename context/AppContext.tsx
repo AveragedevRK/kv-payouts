@@ -1,11 +1,18 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Account, ViewState, Payout } from '../types';
-import { INITIAL_ACCOUNTS } from '../data/mockData';
+import {
+  seedIfEmpty,
+  fetchAllAccounts,
+  addAccountToFirestore,
+  addPayoutToFirestore,
+  updateNotifsInFirestore,
+} from '../lib/firestoreService';
 
 interface AppContextType {
   accounts: Account[];
   activeView: ViewState;
   selectedAccountId: string | null;
+  firestoreReady: boolean;
   setView: (view: ViewState) => void;
   selectAccount: (id: string | null) => void;
   addAccount: (acc: Account) => void;
@@ -16,27 +23,81 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [accounts, setAccounts] = useState<Account[]>(INITIAL_ACCOUNTS);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [activeView, setView] = useState<ViewState>('ACCOUNTS');
   const [selectedAccountId, selectAccount] = useState<string | null>(null);
+  const [firestoreReady, setFirestoreReady] = useState(false);
 
-  const addAccount = (acc: Account) => setAccounts(p => [...p, acc]);
-  
-  const addPayout = (accId: string, payout: Payout) => {
-    setAccounts(prev => prev.map(a => a.id === accId ? 
-      { ...a, payouts: [payout, ...a.payouts] } : a
-    ));
+  useEffect(() => {
+    let cancelled = false;
+    async function init() {
+      try {
+        // Seed Firestore with hardcoded data if the collection is empty
+        await seedIfEmpty();
+        // Fetch all accounts from Firestore
+        const data = await fetchAllAccounts();
+        if (!cancelled) {
+          setAccounts(data);
+          setFirestoreReady(true);
+        }
+      } catch (err) {
+        console.error('Firestore init failed:', err);
+        if (!cancelled) {
+          setFirestoreReady(true);
+        }
+      }
+    }
+    init();
+    return () => { cancelled = true; };
+  }, []);
+
+  const addAccount = async (acc: Account) => {
+    try {
+      await addAccountToFirestore(acc);
+      setAccounts(p => [...p, acc]);
+    } catch (err) {
+      console.error('Failed to add account:', err);
+    }
   };
 
-  const updateNotifs = (accId: string, emails: string[]) => {
-    setAccounts(prev => prev.map(a => a.id === accId ? { ...a, notifiedUsers: emails } : a));
+  const addPayout = async (accId: string, payout: Payout) => {
+    try {
+      await addPayoutToFirestore(accId, payout);
+      setAccounts(prev =>
+        prev.map(a =>
+          a.id === accId ? { ...a, payouts: [payout, ...a.payouts], lastPayoutDate: payout.date } : a
+        )
+      );
+    } catch (err) {
+      console.error('Failed to add payout:', err);
+    }
+  };
+
+  const updateNotifs = async (accId: string, emails: string[]) => {
+    try {
+      await updateNotifsInFirestore(accId, emails);
+      setAccounts(prev =>
+        prev.map(a => (a.id === accId ? { ...a, notifiedUsers: emails } : a))
+      );
+    } catch (err) {
+      console.error('Failed to update notifications:', err);
+    }
   };
 
   return (
-    <AppContext.Provider value={{ 
-      accounts, activeView, selectedAccountId, setView, selectAccount, 
-      addAccount, addPayout, updateNotifs 
-    }}>
+    <AppContext.Provider
+      value={{
+        accounts,
+        activeView,
+        selectedAccountId,
+        firestoreReady,
+        setView,
+        selectAccount,
+        addAccount,
+        addPayout,
+        updateNotifs,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );
@@ -44,6 +105,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 export const useApp = () => {
   const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  if (!ctx) throw new Error('useApp must be used within AppProvider');
   return ctx;
 };

@@ -34,10 +34,11 @@ const FooterWrapper: React.FC = () => {
 };
 
 const AppCore: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [animDone, setAnimDone] = useState(false);
+  const { firestoreReady } = useApp();
 
-  if (isLoading) {
-    return <LoadingScreen onFinished={() => setIsLoading(false)} />;
+  if (!animDone || !firestoreReady) {
+    return <LoadingScreen onFinished={() => setAnimDone(true)} />;
   }
 
   return (
