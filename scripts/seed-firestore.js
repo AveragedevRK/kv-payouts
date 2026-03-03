@@ -1,10 +1,7 @@
 /**
- * Seed script: pushes all mock data from mockData.ts to Firestore.
- * Deletes existing accounts collection first, then re-seeds everything.
- *
- * Run with: node scripts/seed-firestore.mjs
+ * Seed script: pushes all mock data to Firestore.
+ * Clears existing accounts collection first, then re-seeds everything.
  */
-
 import { initializeApp } from 'firebase/app';
 import {
   getFirestore,
@@ -15,7 +12,6 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 
-// ─── Firebase config ───────────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyCdzhWSWp4XfyIrmqVJqabrEJ6rcY_3i94",
   authDomain: "payouts-51e73.firebaseapp.com",
@@ -29,7 +25,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ─── Mock data (inline to avoid TS import issues in .mjs) ─────────
+const ACCOUNTS_COLLECTION = 'accounts';
+const PAYOUTS_SUBCOLLECTION = 'payouts';
+
 const INITIAL_ACCOUNTS = [
   {
     id: 'vegan_earth',
@@ -39,14 +37,8 @@ const INITIAL_ACCOUNTS = [
     nextPayoutDate: '12/26/2025',
     notifiedUsers: ['amrinder@kambojventures.com'],
     healthMetrics: {
-      ahr: 248,
-      odr: 0.32,
-      otdr: 98.5,
-      vtr: 99.1,
-      lsr: 1.2,
-      pfcr: 0.0,
-      feedbackScore: 4.8,
-      feedbackCount: 1543,
+      ahr: 248, odr: 0.32, otdr: 98.5, vtr: 99.1, lsr: 1.2, pfcr: 0.0,
+      feedbackScore: 4.8, feedbackCount: 1543,
     },
     payouts: [
       { id: 've24', date: '12/12/2025', payoutAmount: 29358.35, transferId: 'VHLKEQY79R9XV7G', bankAccount: '268' },
@@ -341,46 +333,37 @@ const INITIAL_ACCOUNTS = [
   },
 ];
 
-// ─── Helper: delete a collection and all subcollections ────────────
+// ─── Helper: delete all docs in a collection + subcollections ─────
 async function deleteCollection(collectionPath) {
   const colRef = collection(db, collectionPath);
   const snapshot = await getDocs(colRef);
 
-  if (snapshot.empty) return;
-
-  // Delete subcollections first for accounts
   for (const docSnap of snapshot.docs) {
-    // Check for payouts subcollection
-    const payoutsRef = collection(db, collectionPath, docSnap.id, 'payouts');
+    // Delete payouts subcollection first
+    const payoutsRef = collection(db, collectionPath, docSnap.id, PAYOUTS_SUBCOLLECTION);
     const payoutsSnap = await getDocs(payoutsRef);
     for (const payoutDoc of payoutsSnap.docs) {
-      await deleteDoc(doc(db, collectionPath, docSnap.id, 'payouts', payoutDoc.id));
+      await deleteDoc(doc(db, collectionPath, docSnap.id, PAYOUTS_SUBCOLLECTION, payoutDoc.id));
     }
-    // Delete the account doc itself
+    // Delete account doc
     await deleteDoc(doc(db, collectionPath, docSnap.id));
   }
 }
 
-// ─── Main seed function ───────────────────────────────────────────
+// ─── Main seed function ──────────────────────────────────────────
 async function seed() {
-  console.log('Starting Firestore seed...');
-  console.log(`Will push ${INITIAL_ACCOUNTS.length} accounts with their payouts.`);
-
-  // Step 1: Clear existing data
   console.log('Clearing existing accounts collection...');
-  await deleteCollection('accounts');
-  console.log('Cleared.');
+  await deleteCollection(ACCOUNTS_COLLECTION);
+  console.log('Existing data cleared.');
 
-  // Step 2: Write all accounts + payouts using batched writes
+  console.log(`Seeding ${INITIAL_ACCOUNTS.length} accounts...`);
+
   const MAX_BATCH_OPS = 450;
   let batch = writeBatch(db);
   let opCount = 0;
-  let totalPayouts = 0;
 
   for (const account of INITIAL_ACCOUNTS) {
-    const accountDocRef = doc(db, 'accounts', account.id);
-
-    // Separate payouts from account data
+    const accountDocRef = doc(db, ACCOUNTS_COLLECTION, account.id);
     const { payouts, ...accountData } = account;
     batch.set(accountDocRef, accountData);
     opCount++;
@@ -391,12 +374,12 @@ async function seed() {
       opCount = 0;
     }
 
-    // Write each payout to subcollection
     for (const payout of payouts) {
-      const payoutDocRef = doc(db, 'accounts', account.id, 'payouts', payout.id);
+      const payoutDocRef = doc(
+        db, ACCOUNTS_COLLECTION, account.id, PAYOUTS_SUBCOLLECTION, payout.id
+      );
       batch.set(payoutDocRef, payout);
       opCount++;
-      totalPayouts++;
 
       if (opCount >= MAX_BATCH_OPS) {
         await batch.commit();
@@ -405,29 +388,15 @@ async function seed() {
       }
     }
 
-    console.log(`  Queued: ${account.name} (${payouts.length} payouts)`);
+    console.log(`  -> ${account.name}: ${payouts.length} payouts`);
   }
 
-  // Commit remaining
   if (opCount > 0) {
     await batch.commit();
   }
 
-  console.log(`\nDone! Seeded ${INITIAL_ACCOUNTS.length} accounts and ${totalPayouts} total payouts to Firestore.`);
-
-  // Step 3: Verify by reading back
-  console.log('\nVerifying by reading back...');
-  const accountsRef = collection(db, 'accounts');
-  const snap = await getDocs(accountsRef);
-  console.log(`Found ${snap.size} accounts in Firestore.`);
-
-  for (const docSnap of snap.docs) {
-    const payoutsRef = collection(db, 'accounts', docSnap.id, 'payouts');
-    const payoutsSnap = await getDocs(payoutsRef);
-    console.log(`  ${docSnap.data().name}: ${payoutsSnap.size} payouts`);
-  }
-
-  console.log('\nSeed complete and verified!');
+  console.log('Seed complete! All mock data has been pushed to Firestore.');
+  process.exit(0);
 }
 
 seed().catch((err) => {
