@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Account, ViewState, Payout } from '../types';
 import {
-  seedIfEmpty,
-  fetchAllAccounts,
+  subscribeToAccounts,
   addAccountToFirestore,
   addPayoutToFirestore,
   updateNotifsInFirestore,
@@ -29,32 +28,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [firestoreReady, setFirestoreReady] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    async function init() {
-      try {
-        // Seed Firestore with hardcoded data if the collection is empty
-        await seedIfEmpty();
-        // Fetch all accounts from Firestore
-        const data = await fetchAllAccounts();
-        if (!cancelled) {
-          setAccounts(data);
-          setFirestoreReady(true);
-        }
-      } catch (err) {
-        console.error('Firestore init failed:', err);
-        if (!cancelled) {
-          setFirestoreReady(true);
-        }
+    const unsubscribe = subscribeToAccounts(
+      (data) => {
+        setAccounts(data);
+        setFirestoreReady(true);
+      },
+      (err) => {
+        console.error('Firestore subscription error:', err);
+        setFirestoreReady(true);
       }
-    }
-    init();
-    return () => { cancelled = true; };
+    );
+    return () => unsubscribe();
   }, []);
 
   const addAccount = async (acc: Account) => {
     try {
       await addAccountToFirestore(acc);
-      setAccounts(p => [...p, acc]);
+      // Real-time listener will update state automatically
     } catch (err) {
       console.error('Failed to add account:', err);
     }
@@ -62,12 +52,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const addPayout = async (accId: string, payout: Payout) => {
     try {
-      await addPayoutToFirestore(accId, payout);
-      setAccounts(prev =>
-        prev.map(a =>
-          a.id === accId ? { ...a, payouts: [payout, ...a.payouts], lastPayoutDate: payout.date } : a
-        )
-      );
+      const account = accounts.find((a) => a.id === accId);
+      await addPayoutToFirestore(accId, payout, account?.payouts || []);
+      // Real-time listener will update state automatically
     } catch (err) {
       console.error('Failed to add payout:', err);
     }
@@ -76,9 +63,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateNotifs = async (accId: string, emails: string[]) => {
     try {
       await updateNotifsInFirestore(accId, emails);
-      setAccounts(prev =>
-        prev.map(a => (a.id === accId ? { ...a, notifiedUsers: emails } : a))
-      );
+      // Real-time listener will update state automatically
     } catch (err) {
       console.error('Failed to update notifications:', err);
     }

@@ -1,148 +1,99 @@
 import {
   collection,
   doc,
-  getDocs,
   setDoc,
-  addDoc,
   updateDoc,
-  writeBatch,
+  onSnapshot,
+  type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Account, Payout } from '../types';
-import { INITIAL_ACCOUNTS } from '../data/mockData';
 
 const ACCOUNTS_COLLECTION = 'accounts';
-const PAYOUTS_SUBCOLLECTION = 'payouts';
 
 /**
- * Seed Firestore with hardcoded data if accounts collection is empty.
- * Uses batched writes. Firestore batches max at 500 ops, so we chunk.
+ * Subscribe to real-time updates on the accounts collection.
+ * Each document is expected to contain the full Account object
+ * including a `payouts` array field.
+ *
+ * Returns an unsubscribe function.
  */
-export async function seedIfEmpty(): Promise<void> {
+export function subscribeToAccounts(
+  onData: (accounts: Account[]) => void,
+  onError: (err: Error) => void
+): Unsubscribe {
   const accountsRef = collection(db, ACCOUNTS_COLLECTION);
-  const snapshot = await getDocs(accountsRef);
 
-  if (!snapshot.empty) {
-    return; // Already seeded
-  }
+  return onSnapshot(
+    accountsRef,
+    (snapshot) => {
+      const accounts: Account[] = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
 
-  // Firestore batch limit is 500 operations per batch
-  const MAX_BATCH_OPS = 450;
-  let batch = writeBatch(db);
-  let opCount = 0;
+        const payouts: Payout[] = (data.payouts || []).map((p: any) => ({
+          id: p.id,
+          date: p.date,
+          payoutAmount: p.payoutAmount,
+          transferId: p.transferId,
+          bankAccount: p.bankAccount,
+          ...(p.isNew !== undefined ? { isNew: p.isNew } : {}),
+        }));
 
-  for (const account of INITIAL_ACCOUNTS) {
-    const accountDocRef = doc(db, ACCOUNTS_COLLECTION, account.id);
+        // Sort payouts by date descending (MM/DD/YYYY format)
+        payouts.sort((a, b) => {
+          const da = new Date(a.date);
+          const db2 = new Date(b.date);
+          return db2.getTime() - da.getTime();
+        });
 
-    // Write account document (without payouts - those go to subcollection)
-    const { payouts, ...accountData } = account;
-    batch.set(accountDocRef, accountData);
-    opCount++;
+        return {
+          id: docSnap.id,
+          name: data.name,
+          platform: data.platform,
+          lastPayoutDate: data.lastPayoutDate,
+          nextPayoutDate: data.nextPayoutDate,
+          notifiedUsers: data.notifiedUsers || [],
+          healthMetrics: data.healthMetrics || undefined,
+          payouts,
+        };
+      });
 
-    if (opCount >= MAX_BATCH_OPS) {
-      await batch.commit();
-      batch = writeBatch(db);
-      opCount = 0;
+      onData(accounts);
+    },
+    (err) => {
+      onError(err);
     }
-
-    // Write each payout as a subcollection document
-    for (const payout of payouts) {
-      const payoutDocRef = doc(
-        db,
-        ACCOUNTS_COLLECTION,
-        account.id,
-        PAYOUTS_SUBCOLLECTION,
-        payout.id
-      );
-      batch.set(payoutDocRef, payout);
-      opCount++;
-
-      if (opCount >= MAX_BATCH_OPS) {
-        await batch.commit();
-        batch = writeBatch(db);
-        opCount = 0;
-      }
-    }
-  }
-
-  // Commit remaining operations
-  if (opCount > 0) {
-    await batch.commit();
-  }
-}
-
-/**
- * Fetch all accounts with their payouts subcollections merged.
- */
-export async function fetchAllAccounts(): Promise<Account[]> {
-  const accountsRef = collection(db, ACCOUNTS_COLLECTION);
-  const accountsSnap = await getDocs(accountsRef);
-
-  const accounts: Account[] = [];
-
-  for (const accountDoc of accountsSnap.docs) {
-    const data = accountDoc.data();
-    const payoutsRef = collection(
-      db,
-      ACCOUNTS_COLLECTION,
-      accountDoc.id,
-      PAYOUTS_SUBCOLLECTION
-    );
-    const payoutsSnap = await getDocs(payoutsRef);
-
-    const payouts: Payout[] = payoutsSnap.docs.map((d) => d.data() as Payout);
-
-    // Sort payouts by date descending (MM/DD/YYYY format)
-    payouts.sort((a, b) => {
-      const da = new Date(a.date);
-      const db = new Date(b.date);
-      return db.getTime() - da.getTime();
-    });
-
-    accounts.push({
-      id: accountDoc.id,
-      name: data.name,
-      platform: data.platform,
-      lastPayoutDate: data.lastPayoutDate,
-      nextPayoutDate: data.nextPayoutDate,
-      notifiedUsers: data.notifiedUsers || [],
-      healthMetrics: data.healthMetrics || undefined,
-      payouts,
-    });
-  }
-
-  return accounts;
+  );
 }
 
 /**
  * Add a new account document to Firestore.
  */
 export async function addAccountToFirestore(account: Account): Promise<void> {
-  const { payouts, ...accountData } = account;
   const accountDocRef = doc(db, ACCOUNTS_COLLECTION, account.id);
-  await setDoc(accountDocRef, accountData);
+  await setDoc(accountDocRef, {
+    name: account.name,
+    platform: account.platform,
+    lastPayoutDate: account.lastPayoutDate,
+    nextPayoutDate: account.nextPayoutDate,
+    notifiedUsers: account.notifiedUsers,
+    ...(account.healthMetrics ? { healthMetrics: account.healthMetrics } : {}),
+    payouts: account.payouts || [],
+  });
 }
 
 /**
- * Add a payout to the payouts subcollection of an account.
- * Also updates the account's lastPayoutDate.
+ * Add a payout to the account's payouts array and update lastPayoutDate.
  */
 export async function addPayoutToFirestore(
   accountId: string,
-  payout: Payout
+  payout: Payout,
+  currentPayouts: Payout[]
 ): Promise<void> {
-  const payoutDocRef = doc(
-    db,
-    ACCOUNTS_COLLECTION,
-    accountId,
-    PAYOUTS_SUBCOLLECTION,
-    payout.id
-  );
-  await setDoc(payoutDocRef, payout);
-
-  // Update lastPayoutDate on the account
   const accountDocRef = doc(db, ACCOUNTS_COLLECTION, accountId);
+  const updatedPayouts = [payout, ...currentPayouts];
   await updateDoc(accountDocRef, {
+    payouts: updatedPayouts,
     lastPayoutDate: payout.date,
   });
 }
