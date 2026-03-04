@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Account, ViewState, Payout } from '../types';
 import { db } from '../lib/firebase';
 import {
   collection,
-  getDocs,
+  onSnapshot,
   doc,
   setDoc,
   updateDoc,
@@ -20,7 +20,6 @@ interface AppContextType {
   addAccount: (acc: Account) => void;
   addPayout: (accId: string, payout: Payout) => void;
   updateNotifs: (accId: string, emails: string[]) => void;
-  refreshAccounts: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -31,34 +30,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [activeView, setView] = useState<ViewState>('ACCOUNTS');
   const [selectedAccountId, selectAccount] = useState<string | null>(null);
 
-  // Fetch accounts from Firestore
-  const fetchAccounts = useCallback(async () => {
-    try {
-      setLoading(true);
-      const snapshot = await getDocs(collection(db, 'accounts'));
-      const data: Account[] = snapshot.docs.map((d) => ({
-        ...d.data(),
-        id: d.id,
-      })) as Account[];
-      setAccounts(data);
-    } catch (error) {
-      console.error('Firestore fetch error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Fetch on every mount (every app load)
+  // Real-time Firestore listener using onSnapshot
   useEffect(() => {
-    fetchAccounts();
-  }, [fetchAccounts]);
+    console.log('[v0] Attaching onSnapshot listener to "accounts" collection...');
+
+    const unsubscribe = onSnapshot(
+      collection(db, 'accounts'),
+      (snapshot) => {
+        console.log('[v0] onSnapshot fired. Document count:', snapshot.size);
+
+        if (snapshot.empty) {
+          console.log('[v0] No accounts found in Firestore');
+          setAccounts([]);
+          setLoading(false);
+          return;
+        }
+
+        const data: Account[] = snapshot.docs.map((d) => d.data() as Account);
+        console.log('[v0] Mapped accounts:', JSON.stringify(data.map(a => ({ id: a.id, name: a.name }))));
+        setAccounts(data);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('[v0] Firestore onSnapshot error:', error);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      console.log('[v0] Detaching onSnapshot listener');
+      unsubscribe();
+    };
+  }, []);
 
   const addAccount = async (acc: Account) => {
     try {
       await setDoc(doc(db, 'accounts', acc.id), acc);
-      await fetchAccounts();
     } catch (error) {
-      console.error('Error adding account:', error);
+      console.error('[v0] Error adding account:', error);
     }
   };
 
@@ -67,9 +76,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await updateDoc(doc(db, 'accounts', accId), {
         payouts: arrayUnion(payout),
       });
-      await fetchAccounts();
     } catch (error) {
-      console.error('Error adding payout:', error);
+      console.error('[v0] Error adding payout:', error);
     }
   };
 
@@ -78,9 +86,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await updateDoc(doc(db, 'accounts', accId), {
         notifiedUsers: emails,
       });
-      await fetchAccounts();
     } catch (error) {
-      console.error('Error updating notifications:', error);
+      console.error('[v0] Error updating notifications:', error);
     }
   };
 
@@ -96,7 +103,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addAccount,
         addPayout,
         updateNotifs,
-        refreshAccounts: fetchAccounts,
       }}
     >
       {children}
