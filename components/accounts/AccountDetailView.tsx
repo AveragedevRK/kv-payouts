@@ -37,8 +37,8 @@ export const AccountDetailView: React.FC<{ accountId: string }> = ({ accountId }
         </div>
       </div>
 
-      <StatBar payouts={account.payouts} nextDate={account.nextPayoutDate} />
-      <PayoutTable payouts={account.payouts} />
+      <StatBar payouts={account.payouts ?? []} nextDate={account.nextPayoutDate} />
+      <PayoutTable payouts={account.payouts ?? []} />
       <AddPayoutModal isOpen={isAddOpen} onClose={() => setAddOpen(false)} accountId={account.id} />
     </div>
   );

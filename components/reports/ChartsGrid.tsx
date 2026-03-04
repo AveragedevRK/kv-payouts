@@ -9,7 +9,7 @@ export const ChartsGrid: React.FC<{ accounts: Account[] }> = ({ accounts }) => {
   const accountData = accounts
     .map(a => ({
       name: a.name, 
-      volume: a.payouts.reduce((s, p) => s + p.payoutAmount, 0)
+      volume: (a.payouts ?? []).reduce((s, p) => s + p.payoutAmount, 0)
     }))
     .sort((a, b) => b.volume - a.volume);
   
