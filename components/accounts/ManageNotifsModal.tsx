@@ -7,17 +7,17 @@ import { Button } from '../common/Button';
 
 export const ManageNotifsModal: React.FC<{ isOpen: boolean; onClose: () => void; account: Account }> = 
 ({ isOpen, onClose, account }) => {
-  const { updateNotifs } = useApp();
+  const { addAlertEmail, removeAlertEmail } = useApp();
   const [email, setEmail] = useState('');
 
   const add = () => {
     if (!email) return;
-    updateNotifs(account.id, [...account.notifiedUsers, email]);
+    addAlertEmail(account.id, email);
     setEmail('');
   };
 
   const remove = (target: string) => {
-    updateNotifs(account.id, account.notifiedUsers.filter(e => e !== target));
+    removeAlertEmail(account.id, target);
   };
 
   return (

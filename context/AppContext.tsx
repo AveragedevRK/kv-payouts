@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Account, ViewState, Payout } from '../types';
+import { Account, ViewState, Payout, AHMetrics } from '../types';
 import { db } from '../lib/firebase';
 import {
   collection,
@@ -8,6 +8,7 @@ import {
   setDoc,
   updateDoc,
   arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 
 interface AppContextType {
@@ -19,7 +20,9 @@ interface AppContextType {
   selectAccount: (id: string | null) => void;
   addAccount: (acc: Account) => void;
   addPayout: (accId: string, payout: Payout) => void;
-  updateNotifs: (accId: string, emails: string[]) => void;
+  updateHealthMetrics: (accId: string, metrics: Partial<AHMetrics>) => void;
+  addAlertEmail: (accId: string, email: string) => void;
+  removeAlertEmail: (accId: string, email: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -63,14 +66,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, []);
 
+  // 1. Add New Account — initialize with empty payouts, healthMetrics, and notifiedUsers
   const addAccount = async (acc: Account) => {
     try {
-      await setDoc(doc(db, 'accounts', acc.id), acc);
+      const newDoc: Account = {
+        ...acc,
+        payouts: [],
+        healthMetrics: {} as AHMetrics,
+        notifiedUsers: [],
+      };
+      await setDoc(doc(db, 'accounts', acc.id), newDoc);
     } catch (error) {
       console.error('[v0] Error adding account:', error);
     }
   };
 
+  // 2. Add Payout To Account — append to payouts array without overwriting
   const addPayout = async (accId: string, payout: Payout) => {
     try {
       await updateDoc(doc(db, 'accounts', accId), {
@@ -81,13 +92,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const updateNotifs = async (accId: string, emails: string[]) => {
+  // 3. Update Health Metrics — merge into healthMetrics without removing other fields
+  const updateHealthMetrics = async (accId: string, metrics: Partial<AHMetrics>) => {
+    try {
+      // Build a flat update map so Firestore merges individual fields
+      const updates: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(metrics)) {
+        updates[`healthMetrics.${key}`] = value;
+      }
+      await updateDoc(doc(db, 'accounts', accId), updates);
+    } catch (error) {
+      console.error('[v0] Error updating health metrics:', error);
+    }
+  };
+
+  // 4. Add Alert Email — append to notifiedUsers using arrayUnion
+  const addAlertEmail = async (accId: string, email: string) => {
     try {
       await updateDoc(doc(db, 'accounts', accId), {
-        notifiedUsers: emails,
+        notifiedUsers: arrayUnion(email),
       });
     } catch (error) {
-      console.error('[v0] Error updating notifications:', error);
+      console.error('[v0] Error adding alert email:', error);
+    }
+  };
+
+  // 5. Remove Alert Email — remove from notifiedUsers using arrayRemove
+  const removeAlertEmail = async (accId: string, email: string) => {
+    try {
+      await updateDoc(doc(db, 'accounts', accId), {
+        notifiedUsers: arrayRemove(email),
+      });
+    } catch (error) {
+      console.error('[v0] Error removing alert email:', error);
     }
   };
 
@@ -102,7 +139,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         selectAccount,
         addAccount,
         addPayout,
-        updateNotifs,
+        updateHealthMetrics,
+        addAlertEmail,
+        removeAlertEmail,
       }}
     >
       {children}

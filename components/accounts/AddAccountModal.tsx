@@ -14,7 +14,8 @@ export const AddAccountModal: React.FC<{ isOpen: boolean; onClose: () => void }>
     const newAccount: Account = {
       id: Date.now().toString(), name, platform,
       lastPayoutDate: '-', nextPayoutDate: '2023-11-01',
-      notifiedUsers: [], payouts: []
+      notifiedUsers: [], payouts: [],
+      healthMetrics: {} as any,
     };
     addAccount(newAccount);
     setName('');
