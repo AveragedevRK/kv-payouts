@@ -35,8 +35,9 @@ const FooterWrapper: React.FC = () => {
 
 const AppCore: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const { loading: firestoreLoading } = useApp();
 
-  if (isLoading) {
+  if (isLoading || firestoreLoading) {
     return <LoadingScreen onFinished={() => setIsLoading(false)} />;
   }
 
