@@ -2,18 +2,24 @@ import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { useApp } from '../../context/AppContext';
-import { Payout } from '../../types';
+import { Account, Payout } from '../../types';
+import { Mail } from 'lucide-react';
 
-interface Props { isOpen: boolean; onClose: () => void; accountId: string }
+interface Props { isOpen: boolean; onClose: () => void; account: Account }
 
-export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, accountId }) => {
+export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, account }) => {
   const { addPayout } = useApp();
   const [amount, setAmount] = useState('0');
   const [tid, setTid] = useState('');
   const [bank, setBank] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [notify, setNotify] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const alertEmails = account.notifiedUsers ?? [];
+  const hasAlertEmails = alertEmails.length > 0;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const p: Payout = {
       id: Date.now().toString(),
@@ -23,7 +29,28 @@ export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, accountId }) 
       bankAccount: bank || '000',
       isNew: true
     };
-    addPayout(accountId, p);
+
+    addPayout(account.id, p);
+
+    if (notify && hasAlertEmails) {
+      setSending(true);
+      try {
+        await fetch('/api/send-payout-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            emails: alertEmails,
+            accountName: account.name,
+            payout: p,
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to send notification emails:', err);
+      } finally {
+        setSending(false);
+      }
+    }
+
     onClose();
   };
 
@@ -36,7 +63,7 @@ export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, accountId }) 
             <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full theme-bg-page border theme-border p-2 theme-text-main rounded-sm" />
           </div>
           <div>
-            <label className="text-[10px] theme-text-sub uppercase mb-1 block">Amount Received ($)</label>
+            <label className="text-[10px] theme-text-sub uppercase mb-1 block">{'Amount Received ($)'}</label>
             <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="w-full theme-bg-page border theme-border p-2 theme-text-main rounded-sm text-lg font-bold" />
           </div>
           <div>
@@ -44,11 +71,43 @@ export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, accountId }) 
             <input type="text" value={tid} onChange={e => setTid(e.target.value)} placeholder="e.g. 478URWO..." className="w-full theme-bg-page border theme-border p-2 theme-text-main rounded-sm font-mono" />
           </div>
           <div>
-            <label className="text-[10px] theme-text-sub uppercase mb-1 block">Bank Account (Last 3-4 digits)</label>
+            <label className="text-[10px] theme-text-sub uppercase mb-1 block">{'Bank Account (Last 3-4 digits)'}</label>
             <input type="text" value={bank} onChange={e => setBank(e.target.value)} placeholder="268" className="w-full theme-bg-page border theme-border p-2 theme-text-main rounded-sm" />
           </div>
         </div>
-        <Button type="submit" className="mt-4">Save Entry</Button>
+
+        <div className={`flex items-start gap-3 p-3 rounded border ${hasAlertEmails ? 'theme-border theme-bg-page' : 'border-dashed theme-border opacity-50'}`}>
+          <input
+            type="checkbox"
+            id="notify-emails"
+            checked={notify}
+            onChange={e => setNotify(e.target.checked)}
+            disabled={!hasAlertEmails}
+            className="mt-0.5 accent-[#FF2D92] w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+          />
+          <label htmlFor="notify-emails" className={`flex-1 ${hasAlertEmails ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Mail size={12} className="theme-text-sub" />
+              <span className="text-xs font-bold theme-text-main">Notify alert contacts</span>
+            </div>
+            {hasAlertEmails ? (
+              <p className="text-[11px] theme-text-sub leading-snug">
+                {'Send payout details to '}
+                <span className="font-semibold theme-text-main">{alertEmails.length}</span>
+                {alertEmails.length === 1 ? ' contact: ' : ' contacts: '}
+                <span className="font-mono text-[10px]">{alertEmails.join(', ')}</span>
+              </p>
+            ) : (
+              <p className="text-[11px] theme-text-sub leading-snug">
+                No alert emails configured for this account. Add contacts in the Manage Notifications modal.
+              </p>
+            )}
+          </label>
+        </div>
+
+        <Button type="submit" disabled={sending} className="mt-2">
+          {sending ? 'Sending...' : 'Save Entry'}
+        </Button>
       </form>
     </Modal>
   );
