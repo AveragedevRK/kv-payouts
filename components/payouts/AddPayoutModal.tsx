@@ -43,7 +43,7 @@ export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, account }) =>
     setSending(true);
     setSendError(null);
 
-    const EMAIL_API = 'https://vm-n35zy75fyi2iwf6wu0w7ik.vusercontent.net/api/send-email';
+    const EMAIL_API = 'https://v0-payouts-mail-api.vercel.app/api/send-email';
     const emailHtml = `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;background:#0a0a0a;border-radius:12px;overflow:hidden;border:1px solid #1a1a1a;">
         <!-- Header with gradient accent bar -->

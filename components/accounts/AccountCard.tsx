@@ -39,7 +39,7 @@ export const AccountCard: React.FC<{ account: Account }> = ({ account }) => {
       </div>
 
       <AccountCardStats account={account} />
-      
+
       <div className="p-6 mt-auto bg-black/5">
         <AccountCardActions account={account} />
       </div>
