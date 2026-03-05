@@ -15,6 +15,7 @@ export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, account }) =>
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [notify, setNotify] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const alertEmails = account.notifiedUsers ?? [];
   const hasAlertEmails = alertEmails.length > 0;
@@ -40,10 +41,19 @@ export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, account }) =>
 
     // Send emails BEFORE closing -- closing unmounts the component and kills in-flight fetches
     setSending(true);
+    setSendError(null);
     try {
       const apiKey = import.meta.env.VITE_RESEND_API_KEY;
       console.log('[v0] Resend API key present:', !!apiKey, 'length:', apiKey?.length);
       console.log('[v0] Sending to:', alertEmails);
+
+      if (!apiKey || apiKey.length < 20) {
+        const errMsg = 'VITE_RESEND_API_KEY is missing or invalid. Check environment variables.';
+        console.error('[v0]', errMsg);
+        setSendError(errMsg);
+        setSending(false);
+        return;
+      }
 
       const payload = {
         from: 'KV Payouts <payouts@kvsmart.io>',
@@ -80,14 +90,23 @@ export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, account }) =>
       console.log('[v0] Resend response body:', JSON.stringify(body));
 
       if (!res.ok) {
+        const errMsg = body?.message || body?.error || `Resend returned ${res.status}`;
         console.error('[v0] Resend API error:', body);
+        if (errMsg.includes('verify') || errMsg.includes('domain')) {
+          console.error('[v0] The from domain (kvsmart.io) may not be verified in Resend. Check your Resend dashboard.');
+        }
+        setSendError(`Email failed: ${errMsg}`);
+        setSending(false);
+        return;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[v0] Failed to send notification emails:', err);
-    } finally {
+      setSendError(`Email failed: ${err?.message || 'Network error'}`);
       setSending(false);
-      onClose();
+      return;
     }
+    setSending(false);
+    onClose();
   };
 
   return (
@@ -141,8 +160,14 @@ export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, account }) =>
           </label>
         </div>
 
+        {sendError && (
+          <div className="p-3 rounded border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-mono leading-relaxed">
+            {sendError}
+          </div>
+        )}
+
         <Button type="submit" disabled={sending} className="mt-2">
-          {sending ? 'Sending...' : 'Save Entry'}
+          {sending ? 'Sending notifications...' : 'Save Entry'}
         </Button>
       </form>
     </Modal>
