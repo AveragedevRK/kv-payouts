@@ -42,65 +42,44 @@ export const AddPayoutModal: React.FC<Props> = ({ isOpen, onClose, account }) =>
     // Send emails BEFORE closing -- closing unmounts the component and kills in-flight fetches
     setSending(true);
     setSendError(null);
+
+    const EMAIL_API = 'https://vm-n35zy75fyi2iwf6wu0w7ik.vusercontent.net/api/send-email';
+    const emailHtml = `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#111;color:#fff;border-radius:8px;">
+        <h2 style="margin:0 0 16px;font-size:20px;color:#FF2D92;">New Payout Recorded</h2>
+        <p style="margin:0 0 16px;color:#aaa;">A new payout has been logged for <strong style="color:#fff;">${account.name}</strong>.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="padding:8px 0;color:#888;border-bottom:1px solid #222;">Amount</td><td style="padding:8px 0;text-align:right;font-weight:bold;color:#fff;border-bottom:1px solid #222;">$${p.payoutAmount.toLocaleString()}</td></tr>
+          <tr><td style="padding:8px 0;color:#888;border-bottom:1px solid #222;">Date</td><td style="padding:8px 0;text-align:right;color:#fff;border-bottom:1px solid #222;">${p.date}</td></tr>
+          <tr><td style="padding:8px 0;color:#888;border-bottom:1px solid #222;">Transfer ID</td><td style="padding:8px 0;text-align:right;font-family:monospace;color:#fff;border-bottom:1px solid #222;">${p.transferId}</td></tr>
+          <tr><td style="padding:8px 0;color:#888;">Bank (last digits)</td><td style="padding:8px 0;text-align:right;color:#fff;">${p.bankAccount}</td></tr>
+        </table>
+        <p style="margin:16px 0 0;font-size:11px;color:#555;">Sent from KV Payouts Dashboard</p>
+      </div>
+    `;
+    const emailSubject = `New Payout Logged - ${account.name}`;
+
     try {
-      const apiKey = import.meta.env.VITE_RESEND_API_KEY;
-      console.log('[v0] Resend API key present:', !!apiKey, 'length:', apiKey?.length);
-      console.log('[v0] Sending to:', alertEmails);
+      const results = await Promise.all(
+        alertEmails.map(async (email) => {
+          const res = await fetch(EMAIL_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: email, subject: emailSubject, html: emailHtml }),
+          });
+          const body = await res.json();
+          return { email, ok: res.ok, status: res.status, body };
+        })
+      );
 
-      if (!apiKey || apiKey.length < 20) {
-        const errMsg = 'VITE_RESEND_API_KEY is missing or invalid. Check environment variables.';
-        console.error('[v0]', errMsg);
-        setSendError(errMsg);
-        setSending(false);
-        return;
-      }
-
-      const payload = {
-        from: 'KV Payouts <payouts@kvsmart.io>',
-        to: alertEmails,
-        subject: `New Payout Logged - ${account.name}`,
-        html: `
-          <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#111;color:#fff;border-radius:8px;">
-            <h2 style="margin:0 0 16px;font-size:20px;color:#FF2D92;">New Payout Recorded</h2>
-            <p style="margin:0 0 16px;color:#aaa;">A new payout has been logged for <strong style="color:#fff;">${account.name}</strong>.</p>
-            <table style="width:100%;border-collapse:collapse;font-size:14px;">
-              <tr><td style="padding:8px 0;color:#888;border-bottom:1px solid #222;">Amount</td><td style="padding:8px 0;text-align:right;font-weight:bold;color:#fff;border-bottom:1px solid #222;">$${p.payoutAmount.toLocaleString()}</td></tr>
-              <tr><td style="padding:8px 0;color:#888;border-bottom:1px solid #222;">Date</td><td style="padding:8px 0;text-align:right;color:#fff;border-bottom:1px solid #222;">${p.date}</td></tr>
-              <tr><td style="padding:8px 0;color:#888;border-bottom:1px solid #222;">Transfer ID</td><td style="padding:8px 0;text-align:right;font-family:monospace;color:#fff;border-bottom:1px solid #222;">${p.transferId}</td></tr>
-              <tr><td style="padding:8px 0;color:#888;">Bank (last digits)</td><td style="padding:8px 0;text-align:right;color:#fff;">${p.bankAccount}</td></tr>
-            </table>
-            <p style="margin:16px 0 0;font-size:11px;color:#555;">Sent from KV Payouts Dashboard</p>
-          </div>
-        `,
-      };
-
-      console.log('[v0] Resend payload:', JSON.stringify(payload, null, 2));
-
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const body = await res.json();
-      console.log('[v0] Resend response status:', res.status);
-      console.log('[v0] Resend response body:', JSON.stringify(body));
-
-      if (!res.ok) {
-        const errMsg = body?.message || body?.error || `Resend returned ${res.status}`;
-        console.error('[v0] Resend API error:', body);
-        if (errMsg.includes('verify') || errMsg.includes('domain')) {
-          console.error('[v0] The from domain (kvsmart.io) may not be verified in Resend. Check your Resend dashboard.');
-        }
-        setSendError(`Email failed: ${errMsg}`);
+      const failures = results.filter(r => !r.ok);
+      if (failures.length > 0) {
+        const msgs = failures.map(f => `${f.email}: ${f.body?.error || f.status}`).join('; ');
+        setSendError(`Failed for: ${msgs}`);
         setSending(false);
         return;
       }
     } catch (err: any) {
-      console.error('[v0] Failed to send notification emails:', err);
       setSendError(`Email failed: ${err?.message || 'Network error'}`);
       setSending(false);
       return;
