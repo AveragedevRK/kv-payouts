@@ -15,8 +15,8 @@ export default async function handler(req: any, res: any) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'KV Payouts <payouts@kvsmart.io>',
-      to: emails,
+      from: 'Payouts <payouts@kvsmart.io>',
+      to: [...emails],
       subject: `New Payout Logged — ${accountName}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; color: #1a1a1a;">
