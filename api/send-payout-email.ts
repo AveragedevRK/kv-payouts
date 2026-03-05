@@ -15,7 +15,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'KV Payouts <onboarding@resend.dev>',
+      from: 'KV Payouts <payouts@kvsmart.io>',
       to: emails,
       subject: `New Payout Logged — ${accountName}`,
       html: `
