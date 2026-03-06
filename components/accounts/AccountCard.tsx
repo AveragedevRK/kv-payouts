@@ -2,8 +2,17 @@ import React from 'react';
 import { Account } from '../../types';
 import { AccountCardActions } from './AccountCardActions';
 import { AccountCardStats } from './AccountCardStats';
+import { Shield, ShieldAlert } from 'lucide-react';
+
+const hasMetrics = (m: Account['healthMetrics']): boolean => {
+  return !!m && typeof m.ahr === 'number';
+};
 
 export const AccountCard: React.FC<{ account: Account }> = ({ account }) => {
+  const m = account.healthMetrics;
+  const metricsExist = hasMetrics(m);
+  const isHealthy = metricsExist && m!.ahr >= 200;
+
   return (
     <div className="theme-bg-card border theme-border rounded-lg overflow-hidden shadow-xl hover:border-[#FF2D92]/80 transition-all flex flex-col group h-full">
       <div className="p-6 md:p-7 border-b theme-border bg-white/[0.03]">
@@ -11,9 +20,17 @@ export const AccountCard: React.FC<{ account: Account }> = ({ account }) => {
           <h3 className="text-2xl md:text-3xl font-black theme-text-main truncate group-hover:theme-accent transition-colors tracking-tighter">
             {account.name}
           </h3>
-          <span className="text-[10px] font-black theme-bg-hover px-2.5 py-1 rounded border theme-border uppercase tracking-[0.15em] opacity-80 whitespace-nowrap">
-            {account.platform}
-          </span>
+          <div className="flex items-center gap-2">
+            {metricsExist && (
+              <span className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded border uppercase tracking-wider ${isHealthy ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
+                {isHealthy ? <Shield size={10} /> : <ShieldAlert size={10} />}
+                {isHealthy ? 'Healthy' : 'At Risk'}
+              </span>
+            )}
+            <span className="text-[10px] font-black theme-bg-hover px-2.5 py-1 rounded border theme-border uppercase tracking-[0.15em] opacity-80 whitespace-nowrap">
+              {account.platform}
+            </span>
+          </div>
         </div>
         <div className="mt-4 flex items-center gap-2">
           <span className="text-[10px] font-black theme-text-sub uppercase tracking-widest opacity-60">NEXT SYNC</span>
@@ -22,7 +39,7 @@ export const AccountCard: React.FC<{ account: Account }> = ({ account }) => {
       </div>
 
       <AccountCardStats account={account} />
-      
+
       <div className="p-6 mt-auto bg-black/5">
         <AccountCardActions account={account} />
       </div>

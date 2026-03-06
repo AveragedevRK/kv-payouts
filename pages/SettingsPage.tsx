@@ -14,7 +14,7 @@ export const SettingsPage: React.FC = () => {
     
     // Flatten all payouts into a single array of rows
     const rows = accounts.flatMap(account => 
-      account.payouts.map(payout => [
+      (account.payouts ?? []).map(payout => [
         account.name,
         account.platform,
         payout.date,
@@ -37,7 +37,7 @@ export const SettingsPage: React.FC = () => {
     const timestamp = new Date().toISOString().split('T')[0];
     
     link.setAttribute('href', url);
-    link.setAttribute('download', `carbon_payouts_export_${timestamp}.csv`);
+    link.setAttribute('download', `kv_payouts_export_${timestamp}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -52,7 +52,7 @@ export const SettingsPage: React.FC = () => {
     const timestamp = new Date().toISOString().split('T')[0];
 
     link.setAttribute('href', url);
-    link.setAttribute('download', `carbon_payouts_dump_${timestamp}.json`);
+    link.setAttribute('download', `kv_payouts_dump_${timestamp}.json`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -121,7 +121,7 @@ export const SettingsPage: React.FC = () => {
       {/* Info Section */}
       <div className="text-center md:text-left pt-4">
         <p className="text-[10px] theme-text-sub uppercase tracking-[0.2em] opacity-40">
-          Carbon Payouts Dashboard &bull; v1.2.0 &bull; Kamboj Ventures
+          KV Payouts Dashboard &bull; v1.2.0 &bull; Kamboj Ventures
         </p>
       </div>
     </div>

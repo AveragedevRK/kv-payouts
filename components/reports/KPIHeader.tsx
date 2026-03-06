@@ -2,7 +2,7 @@ import React from 'react';
 import { Account } from '../../types';
 
 export const KPIHeader: React.FC<{ accounts: Account[] }> = ({ accounts }) => {
-  const allPayouts = accounts.flatMap(a => a.payouts);
+  const allPayouts = accounts.flatMap(a => a.payouts ?? []);
   const totalAmount = allPayouts.reduce((s, p) => s + p.payoutAmount, 0);
   const avgPayout = allPayouts.length ? totalAmount / allPayouts.length : 0;
 

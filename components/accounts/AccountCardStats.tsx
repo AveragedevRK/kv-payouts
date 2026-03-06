@@ -2,8 +2,9 @@ import React from 'react';
 import { Account } from '../../types';
 
 export const AccountCardStats: React.FC<{ account: Account }> = ({ account }) => {
-  const lastPayout = account.payouts[0];
-  const totalPayouts = account.payouts.reduce((sum, p) => sum + p.payoutAmount, 0);
+  const safePayouts = account.payouts ?? [];
+  const lastPayout = safePayouts[0];
+  const totalPayouts = safePayouts.reduce((sum, p) => sum + p.payoutAmount, 0);
   
   const Stat = ({ label, val, color = 'theme-text-main' }: { label: string, val: string, color?: string }) => (
     <div className="flex flex-col">

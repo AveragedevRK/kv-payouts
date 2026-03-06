@@ -8,7 +8,7 @@ export const PayoutsPage: React.FC = () => {
   const { accounts } = useApp();
   // Flatten payouts with account context
   const allPayouts = accounts.flatMap(acc => 
-    acc.payouts.map(p => ({ ...p, accountName: acc.name, platform: acc.platform }))
+    (acc.payouts ?? []).map(p => ({ ...p, accountName: acc.name, platform: acc.platform }))
   );
 
   const [filtered, setFiltered] = useState(allPayouts);

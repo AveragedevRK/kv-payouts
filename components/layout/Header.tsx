@@ -15,7 +15,7 @@ export const Header: React.FC = () => {
           className="h-8 w-8 md:h-9 md:w-9 rounded-full object-cover border theme-border shadow-sm"
         />
         <div className="flex flex-col">
-          <span className="font-black theme-text-main tracking-tighter text-sm md:text-base leading-none">PAYOUTS</span>
+          <span className="font-black theme-text-main tracking-tighter text-sm md:text-base leading-none">KV PAYOUTS</span>
           <span className="text-[10px] theme-text-sub font-bold tracking-[0.2em] opacity-60">DASHBOARD</span>
         </div>
       </div>
