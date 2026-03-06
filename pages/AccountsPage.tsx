@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { AccountCard } from '../components/accounts/AccountCard';
 import { Button } from '../components/common/Button';
@@ -8,6 +8,15 @@ import { AccountDetailView } from '../components/accounts/AccountDetailView';
 
 export const AccountsPage: React.FC = () => {
   const { accounts, selectedAccountId } = useApp();
+
+  // Sort accounts by total payout volume descending
+  const sortedAccounts = useMemo(() => {
+    return [...accounts].sort((a, b) => {
+      const aVol = (a.payouts ?? []).reduce((s, p) => s + p.payoutAmount, 0);
+      const bVol = (b.payouts ?? []).reduce((s, p) => s + p.payoutAmount, 0);
+      return bVol - aVol;
+    });
+  }, [accounts]);
   const [isAddOpen, setAddOpen] = useState(false);
 
   if (selectedAccountId) {
@@ -25,7 +34,7 @@ export const AccountsPage: React.FC = () => {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-        {accounts.map(acc => (
+        {sortedAccounts.map(acc => (
           <AccountCard key={acc.id} account={acc} />
         ))}
       </div>

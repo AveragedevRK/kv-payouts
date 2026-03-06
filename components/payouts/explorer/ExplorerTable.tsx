@@ -5,7 +5,7 @@ import { ChevronUp, ChevronDown, Minus } from 'lucide-react';
 type SortDir = 'asc' | 'desc' | null;
 
 export const ExplorerTable: React.FC<{ items: any[] }> = ({ items }) => {
-  const [sortConfig, setSortConfig] = useState<{ key: string, direction: SortDir }>({ key: 'date', direction: null });
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: SortDir }>({ key: 'date', direction: 'desc' });
 
   const sortedItems = useMemo(() => {
     if (!sortConfig.direction) return items;

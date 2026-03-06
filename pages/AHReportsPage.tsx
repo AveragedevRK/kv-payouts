@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Activity, AlertTriangle, CheckCircle, Shield, ShieldAlert, Package, ThumbsUp, Truck, Pencil, X, Save } from 'lucide-react';
 import { AHMetrics, Account } from '../types';
@@ -277,6 +277,15 @@ const AccountHealthCard = ({ account }: { account: Account }) => {
 export const AHReportsPage: React.FC = () => {
   const { accounts } = useApp();
 
+  // Sort accounts by total payout volume descending
+  const sortedAccounts = useMemo(() => {
+    return [...accounts].sort((a, b) => {
+      const aVol = (a.payouts ?? []).reduce((s, p) => s + p.payoutAmount, 0);
+      const bVol = (b.payouts ?? []).reduce((s, p) => s + p.payoutAmount, 0);
+      return bVol - aVol;
+    });
+  }, [accounts]);
+
   return (
     <div className="p-4 md:p-8 max-w-[1600px] mx-auto animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
@@ -298,7 +307,7 @@ export const AHReportsPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
-          {accounts.map(acc => (
+          {sortedAccounts.map(acc => (
             <AccountHealthCard key={acc.id} account={acc} />
           ))}
         </div>

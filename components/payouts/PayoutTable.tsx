@@ -7,7 +7,7 @@ import { ChevronUp, ChevronDown, Minus } from 'lucide-react';
 type SortDir = 'asc' | 'desc' | null;
 
 export const PayoutTable: React.FC<{ payouts: Payout[] }> = ({ payouts }) => {
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Payout, direction: SortDir }>({ key: 'date', direction: null });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Payout, direction: SortDir }>({ key: 'date', direction: 'desc' });
 
   const sortedPayouts = useMemo(() => {
     if (!sortConfig.direction) return payouts;
